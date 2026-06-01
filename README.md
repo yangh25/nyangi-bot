@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# nyangi-bot
 
-## Getting Started
+A personal Korean vocabulary tracker built for readers.
 
-First, run the development server:
+I kept looking up the same words over and over while reading Korean books and wanted somewhere to keep track of them. So I built nyangi-bot. Hopefully it helps anyone else out there on the never ending journey of learning a foreign language.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What it does
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Add words** — search for a Korean word and Claude looks up its definitions, part of speech, hanja origins, and suggests a category. Pick the right sense, add the sentence you found it in, and save it to your bank.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Word bank** — browse all your saved words, filterable by type: 순우리말, 한자, 사자성어, 속담, 관용어.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Review** — spaced repetition queue that surfaces words you haven't seen in a while. Mark each one as "Got it" or "Missed it" and keep going as long as you want.
 
-## Learn More
+## Stack
 
-To learn more about Next.js, take a look at the following resources:
+- [Next.js 16](https://nextjs.org) — app router, server components
+- [Prisma 5](https://prisma.io) + PostgreSQL — database
+- [NextAuth v5](https://authjs.dev) — username/password auth
+- [Claude Haiku](https://anthropic.com) — word definitions, hanja, category suggestions, with result caching
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Local setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Prerequisites:** Node.js 18+, PostgreSQL
 
-## Deploy on Vercel
+1. Clone the repo and install dependencies:
+   ```bash
+   npm install
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Create a PostgreSQL database and copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Fill in `.env`:
+   ```
+   DATABASE_URL="postgresql://user:password@localhost:5432/nyangi_bot"
+   AUTH_SECRET="your-random-secret"
+   ANTHROPIC_API_KEY="sk-ant-..."
+   ```
+
+4. Run migrations and start the dev server:
+   ```bash
+   npx prisma migrate dev
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) and register an account.
