@@ -23,7 +23,9 @@ const client = new Anthropic();
 async function fetchFromClaude(q: string): Promise<SearchResult> {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 2048,
+    max_tokens: 8000,
+    thinking: { type: "adaptive" },
+    output_config: { effort: "medium" },
     messages: [
       {
         role: "user",
