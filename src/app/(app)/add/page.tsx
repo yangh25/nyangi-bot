@@ -93,7 +93,7 @@ export default function AddWordPage() {
 
     setSaveResult({ alreadySeen: data.alreadySeen, timesSeen: data.timesSeen });
     if (!data.alreadySeen) {
-      setTimeout(() => router.push("/words"), 800);
+      setTimeout(() => router.push("/"), 800);
     }
   }
 
@@ -131,6 +131,7 @@ export default function AddWordPage() {
               className="w-full text-left border border-stone-200 rounded-lg px-4 py-3 bg-white hover:border-stone-400 transition-colors"
             >
               <span className="font-medium text-stone-800">{c.word}</span>
+              {c.hanja && <span className="text-stone-400 ml-1.5">{c.hanja}</span>}
               {c.pos && <span className="text-xs text-stone-400 ml-2">{c.pos}</span>}
               {c.definitionKo && (
                 <p className="text-sm text-stone-500 mt-0.5 truncate">{c.definitionKo}</p>
