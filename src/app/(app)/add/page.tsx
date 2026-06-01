@@ -110,7 +110,7 @@ export default function AddWordPage() {
 
     setSaveResult({ alreadySeen: data.alreadySeen, timesSeen: data.timesSeen });
     if (!data.alreadySeen) {
-      setTimeout(() => router.push("/"), 800);
+      setTimeout(() => router.push("/words"), 800);
     }
   }
 
