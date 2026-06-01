@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Category {
+  PURE_KOREAN
+  HANJA
+  FOUR_CHAR_IDIOM
+  PROVERB
+  IDIOM
+}
+
+model User {
+  id        String     @id @default(cuid())
+  username  String     @unique
+  password  String
+  userWords UserWord[]
+  createdAt DateTime   @default(now())
+}
+
+model Word {
+  id           String     @id @default(cuid())
+  korean       String
+  romanization String?
+  category     Category
+  definitionEn String?
+  definitionKo String?
+  userWords    UserWord[]
+  createdAt    DateTime   @default(now())
+}
+
+model UserWord {
+  id              String   @id @default(cuid())
+  userId          String
+  wordId          String
+  timesSeen       Int      @default(1)
+  lastSeenAt      DateTime @default(now())
+  contextSentence String?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word            Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, wordId])
+}
