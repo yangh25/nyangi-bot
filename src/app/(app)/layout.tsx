@@ -23,6 +23,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NavLink href="/words" active={pathname === "/words"}>
             Word bank
           </NavLink>
+          <NavLink href="/review" active={pathname === "/review"}>
+            Review
+          </NavLink>
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

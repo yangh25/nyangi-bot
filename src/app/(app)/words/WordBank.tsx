@@ -102,11 +102,11 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
               </div>
 
               {/* Definitions */}
-              {word.definitionEn && (
-                <p className="text-sm text-stone-700 mb-0.5">{word.definitionEn}</p>
-              )}
               {word.definitionKo && (
-                <p className="text-sm text-stone-500">{word.definitionKo}</p>
+                <p className="text-sm text-stone-700 mb-0.5">{word.definitionKo}</p>
+              )}
+              {word.definitionEn && (
+                <p className="text-sm text-stone-500">{word.definitionEn}</p>
               )}
 
               {/* Context sentence */}
