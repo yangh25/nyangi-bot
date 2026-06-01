@@ -28,11 +28,18 @@ model Word {
   korean       String
   romanization String?
   hanja        String?
+  pos          String?
   category     Category
   definitionEn String?
   definitionKo String?
   userWords    UserWord[]
   createdAt    DateTime   @default(now())
+}
+
+model SearchCache {
+  query     String   @id
+  results   Json
+  createdAt DateTime @default(now())
 }
 
 model UserWord {

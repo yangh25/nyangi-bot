@@ -10,6 +10,7 @@ interface FormState {
   korean: string;
   romanization: string;
   hanja: string;
+  pos: string;
   category: Category | "";
   definitionEn: string;
   definitionKo: string;
@@ -20,6 +21,7 @@ const EMPTY_FORM: FormState = {
   korean: "",
   romanization: "",
   hanja: "",
+  pos: "",
   category: "",
   definitionEn: "",
   definitionKo: "",
@@ -36,6 +38,7 @@ export default function AddWordPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ alreadySeen: boolean; timesSeen: number } | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -62,12 +65,26 @@ export default function AddWordPage() {
     setCandidates(data.candidates);
   }
 
+  async function handleReport() {
+    setReporting(true);
+    await fetch(`/api/krdict?q=${encodeURIComponent(query.trim())}`, { method: "DELETE" });
+    setCandidates([]);
+    setSelected(null);
+    setForm(EMPTY_FORM);
+
+    const res = await fetch(`/api/krdict?q=${encodeURIComponent(query.trim())}`);
+    const data = await res.json();
+    setReporting(false);
+    if (res.ok && data.candidates.length > 0) setCandidates(data.candidates);
+  }
+
   function selectCandidate(candidate: KrdictCandidate) {
     setSelected(candidate);
     setForm({
       korean: candidate.word,
       romanization: "",
       hanja: candidate.hanja,
+      pos: candidate.pos,
       category: (candidate.suggestedCategory as Category) || "",
       definitionEn: candidate.definitionEn,
       definitionKo: candidate.definitionKo,
@@ -123,7 +140,16 @@ export default function AddWordPage() {
       {/* Candidates */}
       {candidates.length > 0 && !selected && (
         <div className="space-y-2 mb-6">
-          <p className="text-xs text-stone-500 mb-2">{candidates.length} results — pick the right one</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-stone-500">{candidates.length} results — pick the right one</p>
+            <button
+              onClick={handleReport}
+              disabled={reporting}
+              className="text-xs text-stone-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+            >
+              {reporting ? "Refreshing…" : "Report inaccurate results"}
+            </button>
+          </div>
           {candidates.map((c) => (
             <button
               key={c.targetCode}

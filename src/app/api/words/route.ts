@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { korean, romanization, hanja, category, definitionEn, definitionKo, contextSentence } =
+  const { korean, romanization, hanja, pos, category, definitionEn, definitionKo, contextSentence } =
     await req.json();
 
   if (!korean || !category) {
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
         korean,
         romanization: romanization || null,
         hanja: hanja || null,
+        pos: pos || null,
         category: category as Category,
         definitionEn: definitionEn || null,
         definitionKo: definitionKo || null,
