@@ -27,6 +27,7 @@ model Word {
   id           String     @id @default(cuid())
   korean       String
   romanization String?
+  hanja        String?
   category     Category
   definitionEn String?
   definitionKo String?
