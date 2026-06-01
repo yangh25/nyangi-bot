@@ -69,7 +69,7 @@ export default function AddWordPage() {
       return;
     }
     if (data.candidates.length === 0) {
-      setSearchError("No results found");
+      setSearchError("No matching word found — try a different word.");
       return;
     }
     setCorrection(data.correction ?? "");
