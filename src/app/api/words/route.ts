@@ -16,17 +16,22 @@ export async function POST(req: Request) {
 
   let word = await prisma.word.findFirst({ where: { korean, category: category as Category } });
 
+  const content = {
+    romanization: romanization || null,
+    hanja: hanja || null,
+    pos: pos || null,
+    definitionEn: definitionEn || null,
+    definitionKo: definitionKo || null,
+  };
+
   if (!word) {
     word = await prisma.word.create({
-      data: {
-        korean,
-        romanization: romanization || null,
-        hanja: hanja || null,
-        pos: pos || null,
-        category: category as Category,
-        definitionEn: definitionEn || null,
-        definitionKo: definitionKo || null,
-      },
+      data: { korean, category: category as Category, ...content },
+    });
+  } else {
+    word = await prisma.word.update({
+      where: { id: word.id },
+      data: content,
     });
   }
 

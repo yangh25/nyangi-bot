@@ -17,6 +17,10 @@ interface FormState {
   contextSentence: string;
 }
 
+function splitSenses(def: string): string[] {
+  return def.split(/\s+(?=\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
+}
+
 const EMPTY_FORM: FormState = {
   korean: "",
   romanization: "",
@@ -40,9 +44,9 @@ export default function AddWordPage() {
   const [saveResult, setSaveResult] = useState<{ alreadySeen: boolean; timesSeen: number } | null>(null);
   const [reporting, setReporting] = useState(false);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  async function runSearch(fresh: boolean) {
+    const q = query.trim();
+    if (!q) return;
     setSearching(true);
     setSearchError("");
     setCandidates([]);
@@ -50,7 +54,11 @@ export default function AddWordPage() {
     setForm(EMPTY_FORM);
     setSaveResult(null);
 
-    const res = await fetch(`/api/krdict?q=${encodeURIComponent(query.trim())}`);
+    if (fresh) {
+      await fetch(`/api/krdict?q=${encodeURIComponent(q)}`, { method: "DELETE" });
+    }
+
+    const res = await fetch(`/api/krdict?q=${encodeURIComponent(q)}`);
     const data = await res.json();
     setSearching(false);
 
@@ -63,6 +71,11 @@ export default function AddWordPage() {
       return;
     }
     setCandidates(data.candidates);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    runSearch(false);
   }
 
   async function handleReport() {
@@ -87,7 +100,7 @@ export default function AddWordPage() {
       pos: candidate.pos,
       category: (candidate.suggestedCategory as Category) || "",
       definitionEn: candidate.definitionEn,
-      definitionKo: candidate.definitionKo,
+      definitionKo: splitSenses(candidate.definitionKo).join("\n"),
       contextSentence: "",
     });
     setSaveResult(null);
@@ -133,6 +146,15 @@ export default function AddWordPage() {
         >
           {searching ? "Searching…" : "Search"}
         </button>
+        <button
+          type="button"
+          onClick={() => runSearch(true)}
+          disabled={searching || !query.trim()}
+          title="Ignore cached results and search again"
+          className="border border-stone-300 text-stone-600 rounded-lg px-4 py-2 text-sm font-medium hover:border-stone-500 disabled:opacity-50 transition-colors"
+        >
+          Fresh
+        </button>
       </form>
 
       {searchError && <p className="text-red-500 text-sm mb-4">{searchError}</p>}
@@ -160,7 +182,11 @@ export default function AddWordPage() {
               {c.hanja && <span className="text-stone-400 ml-1.5">{c.hanja}</span>}
               {c.pos && <span className="text-xs text-stone-400 ml-2">{c.pos}</span>}
               {c.definitionKo && (
-                <p className="text-sm text-stone-500 mt-0.5 truncate">{c.definitionKo}</p>
+                <div className="text-sm text-stone-500 mt-0.5">
+                  {splitSenses(c.definitionKo).map((sense, i) => (
+                    <p key={i}>{sense}</p>
+                  ))}
+                </div>
               )}
               {c.definitionEn && (
                 <p className="text-xs text-stone-400 truncate">{c.definitionEn}</p>
@@ -219,7 +245,7 @@ export default function AddWordPage() {
             <textarea
               value={form.definitionKo}
               onChange={(e) => setForm((f) => ({ ...f, definitionKo: e.target.value }))}
-              rows={2}
+              rows={Math.max(2, form.definitionKo.split("\n").length)}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 resize-none"
             />
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Category } from "@prisma/client";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 
@@ -39,6 +39,30 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
   const [filter, setFilter] = useState<Category | "ALL">("ALL");
 
   const filtered = filter === "ALL" ? words : words.filter((w) => w.word.category === filter);
+
+  // Map each hanja character to the HANJA words that contain it.
+  const hanjaIndex = useMemo(() => {
+    const map = new Map<string, WordEntry[]>();
+    for (const entry of words) {
+      if (entry.word.category !== "HANJA" || !entry.word.hanja) continue;
+      for (const ch of new Set(entry.word.hanja)) {
+        const list = map.get(ch) ?? [];
+        list.push(entry);
+        map.set(ch, list);
+      }
+    }
+    return map;
+  }, [words]);
+
+  function relatedByChar(entry: WordEntry) {
+    if (entry.word.category !== "HANJA" || !entry.word.hanja) return [];
+    return [...new Set(entry.word.hanja)]
+      .map((ch) => ({
+        ch,
+        others: (hanjaIndex.get(ch) ?? []).filter((e) => e.id !== entry.id),
+      }))
+      .filter(({ others }) => others.length > 0);
+  }
 
   return (
     <div>
@@ -80,6 +104,7 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
       <div className="space-y-3">
         {filtered.map((entry) => {
           const { word } = entry;
+          const related = relatedByChar(entry);
           return (
             <div key={entry.id} className="bg-white border border-stone-200 rounded-xl p-5">
               {/* Top row */}
@@ -103,7 +128,7 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
 
               {/* Definitions */}
               {word.definitionKo && (
-                <p className="text-sm text-stone-700 mb-0.5">{word.definitionKo}</p>
+                <p className="text-sm text-stone-700 mb-0.5 whitespace-pre-line">{word.definitionKo}</p>
               )}
               {word.definitionEn && (
                 <p className="text-sm text-stone-500">{word.definitionEn}</p>
@@ -114,6 +139,32 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
                 <p className="text-sm text-stone-400 italic mt-2 border-l-2 border-stone-200 pl-3">
                   {entry.contextSentence}
                 </p>
+              )}
+
+              {/* Shared hanja */}
+              {related.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-stone-100 space-y-1">
+                  {related.map(({ ch, others }) => (
+                    <div key={ch} className="flex items-baseline gap-2 text-sm">
+                      <span className="text-base font-bold text-blue-700">{ch}</span>
+                      <span className="text-stone-500">
+                        {others.map((o, i) => (
+                          <span key={o.id} className="group/word relative">
+                            <span className="underline decoration-dotted underline-offset-2 cursor-help">
+                              {o.word.korean}{o.word.hanja ? ` (${o.word.hanja})` : ""}
+                            </span>
+                            {o.word.definitionKo && (
+                              <span className="hidden group-hover/word:block absolute left-0 top-full mt-1 z-10 w-max max-w-xs bg-white border border-stone-200 text-stone-700 text-xs rounded-lg px-3 py-2 whitespace-pre-line shadow-md">
+                                {o.word.definitionKo}
+                              </span>
+                            )}
+                            {i < others.length - 1 ? "、 " : ""}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {/* Footer */}

@@ -126,7 +126,7 @@ export default function ReviewPage() {
           <div className="space-y-3">
             <div className="p-4 bg-stone-50 rounded-xl space-y-1">
               {word.definitionKo && (
-                <p className="text-sm text-stone-700">{word.definitionKo}</p>
+                <p className="text-sm text-stone-700 whitespace-pre-line">{word.definitionKo}</p>
               )}
               {word.definitionEn && (
                 <p className="text-sm text-stone-500">{word.definitionEn}</p>
