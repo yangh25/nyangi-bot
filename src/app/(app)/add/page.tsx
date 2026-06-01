@@ -38,6 +38,7 @@ export default function AddWordPage() {
   const [candidates, setCandidates] = useState<KrdictCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [correction, setCorrection] = useState("");
   const [selected, setSelected] = useState<KrdictCandidate | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -49,6 +50,7 @@ export default function AddWordPage() {
     if (!q) return;
     setSearching(true);
     setSearchError("");
+    setCorrection("");
     setCandidates([]);
     setSelected(null);
     setForm(EMPTY_FORM);
@@ -70,6 +72,7 @@ export default function AddWordPage() {
       setSearchError("No results found");
       return;
     }
+    setCorrection(data.correction ?? "");
     setCandidates(data.candidates);
   }
 
@@ -88,7 +91,10 @@ export default function AddWordPage() {
     const res = await fetch(`/api/krdict?q=${encodeURIComponent(query.trim())}`);
     const data = await res.json();
     setReporting(false);
-    if (res.ok && data.candidates.length > 0) setCandidates(data.candidates);
+    if (res.ok && data.candidates.length > 0) {
+      setCorrection(data.correction ?? "");
+      setCandidates(data.candidates);
+    }
   }
 
   function selectCandidate(candidate: KrdictCandidate) {
@@ -158,6 +164,12 @@ export default function AddWordPage() {
       </form>
 
       {searchError && <p className="text-red-500 text-sm mb-4">{searchError}</p>}
+
+      {correction && (
+        <p className="text-sm text-amber-700 mb-4">
+          Did you mean <span className="font-semibold">{correction}</span>? Showing results for the corrected spelling.
+        </p>
+      )}
 
       {/* Candidates */}
       {candidates.length > 0 && !selected && (
