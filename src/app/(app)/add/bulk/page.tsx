@@ -20,9 +20,9 @@ interface Row {
   error: boolean; // search failed (transient/truncation) — distinct from "no match"
 }
 
-async function fetchCandidates(
-  query: string,
-): Promise<{ candidates: KrdictCandidate[]; correction: string; error: boolean }> {
+type SearchOutcome = { candidates: KrdictCandidate[]; correction: string; error: boolean };
+
+async function fetchCandidates(query: string): Promise<SearchOutcome> {
   try {
     const res = await fetch(`/api/krdict?q=${encodeURIComponent(query)}`);
     const data = await res.json();
@@ -34,6 +34,21 @@ async function fetchCandidates(
     return { candidates: [], correction: "", error: true };
   }
 }
+
+function rowFrom(query: string, res: SearchOutcome): Row {
+  return {
+    query,
+    correction: res.correction,
+    candidates: res.candidates,
+    selectedIdx: res.candidates.length === 1 ? 0 : null,
+    category: res.candidates.length === 1 ? makeCategory(res.candidates[0]) : "",
+    saved: false,
+    saveError: "",
+    error: res.error,
+  };
+}
+
+const SEARCH_CONCURRENCY = 4;
 
 function makeCategory(c: KrdictCandidate | undefined): Category | "" {
   return (c?.suggestedCategory as Category) || "";
@@ -55,41 +70,31 @@ export default function BulkAddPage() {
     setRows([]);
     setProgress({ done: 0, total: words.length });
 
-    const collected: Row[] = [];
-    for (const query of words) {
-      const { candidates, correction, error } = await fetchCandidates(query);
+    // Search in parallel with a bounded worker pool. Results are keyed by
+    // index so display order matches input order even as calls finish
+    // out of order; the progress counter ticks as each one resolves.
+    const results: (Row | undefined)[] = new Array(words.length);
+    let done = 0;
+    let next = 0;
 
-      collected.push({
-        query,
-        correction,
-        candidates,
-        selectedIdx: candidates.length === 1 ? 0 : null,
-        category: candidates.length === 1 ? makeCategory(candidates[0]) : "",
-        saved: false,
-        saveError: "",
-        error,
-      });
-      setProgress({ done: collected.length, total: words.length });
-      setRows([...collected]);
+    async function worker() {
+      while (next < words.length) {
+        const i = next++;
+        results[i] = rowFrom(words[i], await fetchCandidates(words[i]));
+        done++;
+        setProgress({ done, total: words.length });
+        setRows(results.filter((r): r is Row => r !== undefined));
+      }
     }
+
+    await Promise.all(
+      Array.from({ length: Math.min(SEARCH_CONCURRENCY, words.length) }, worker),
+    );
   }
 
   async function retryRow(query: string) {
-    const { candidates, correction, error } = await fetchCandidates(query);
-    setRows((rs) =>
-      rs.map((r) =>
-        r.query === query
-          ? {
-              ...r,
-              candidates,
-              correction,
-              error,
-              selectedIdx: candidates.length === 1 ? 0 : null,
-              category: candidates.length === 1 ? makeCategory(candidates[0]) : "",
-            }
-          : r,
-      ),
-    );
+    const res = await fetchCandidates(query);
+    setRows((rs) => rs.map((r) => (r.query === query ? rowFrom(query, res) : r)));
   }
 
   function selectCandidate(query: string, idx: number) {
