@@ -23,7 +23,7 @@ const client = new Anthropic();
 async function fetchFromClaude(q: string): Promise<SearchResult> {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 8000,
+    max_tokens: 4000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium" },
     messages: [
@@ -33,6 +33,10 @@ async function fetchFromClaude(q: string): Promise<SearchResult> {
       },
     ],
   });
+
+  if (message.stop_reason === "max_tokens") {
+    throw new Error("TRUNCATED");
+  }
 
   const raw = message.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "{}";
   const json = raw.replace(/^```(?:json)?\s*/m, "").replace(/\s*```$/m, "").trim();
@@ -76,8 +80,16 @@ export async function GET(req: Request) {
   let result: SearchResult;
   try {
     result = await fetchFromClaude(q);
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch definitions" }, { status: 500 });
+  } catch (err) {
+    const truncated = err instanceof Error && err.message === "TRUNCATED";
+    return NextResponse.json(
+      {
+        error: truncated
+          ? "That search returned too much to process — try a more specific word."
+          : "Failed to fetch definitions",
+      },
+      { status: 500 },
+    );
   }
 
   // If the corrected spelling is already cached, show that cached version's candidates.
