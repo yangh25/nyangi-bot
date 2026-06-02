@@ -20,6 +20,10 @@ interface WordEntry {
   };
 }
 
+// The hanja field occasionally contains hangul (e.g. 하, 다) from bad model
+// output; only real CJK (Han) characters should count as hanja.
+const isHanja = (ch: string) => /\p{Script=Han}/u.test(ch);
+
 function timeAgo(date: Date) {
   const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
   if (days === 0) return "today";
@@ -46,6 +50,7 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
     for (const entry of words) {
       if (entry.word.category !== "HANJA" || !entry.word.hanja) continue;
       for (const ch of new Set(entry.word.hanja)) {
+        if (!isHanja(ch)) continue;
         const list = map.get(ch) ?? [];
         list.push(entry);
         map.set(ch, list);
@@ -57,9 +62,12 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
   function relatedByChar(entry: WordEntry) {
     if (entry.word.category !== "HANJA" || !entry.word.hanja) return [];
     return [...new Set(entry.word.hanja)]
+      .filter(isHanja)
       .map((ch) => ({
         ch,
-        others: (hanjaIndex.get(ch) ?? []).filter((e) => e.id !== entry.id),
+        others: (hanjaIndex.get(ch) ?? [])
+          .filter((e) => e.id !== entry.id)
+          .sort((a, b) => a.word.korean.length - b.word.korean.length),
       }))
       .filter(({ others }) => others.length > 0);
   }
@@ -146,11 +154,11 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
                 <div className="mt-3 pt-3 border-t border-stone-100 space-y-1">
                   {related.map(({ ch, others }) => (
                     <div key={ch} className="flex items-baseline gap-2 text-sm">
-                      <span className="text-base font-bold text-blue-700">{ch}</span>
+                      <span className="w-5 shrink-0 text-base font-bold text-blue-700">{ch}</span>
                       <span className="text-stone-500">
                         {others.map((o, i) => (
                           <span key={o.id} className="group/word relative">
-                            <span className="underline decoration-dotted underline-offset-2 cursor-help">
+                            <span className="underline decoration-dotted underline-offset-2 cursor-help whitespace-nowrap">
                               {o.word.korean}{o.word.hanja ? ` (${o.word.hanja})` : ""}
                             </span>
                             {o.word.definitionKo && (
