@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Scale the whole UI up a little: Tailwind's rem-based sizes (text, padding,
+   max-widths) all key off this root font size. */
+html {
+  font-size: 24px;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

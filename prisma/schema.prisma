@@ -42,6 +42,13 @@ model SearchCache {
   createdAt DateTime @default(now())
 }
 
+model Hanja {
+  character String   @id
+  meaningKo String // standard 훈음, e.g. 變 -> "변할 변"
+  meaningEn String // simple gloss for storage, e.g. "change"
+  createdAt DateTime @default(now())
+}
+
 model UserWord {
   id              String   @id @default(cuid())
   userId          String
