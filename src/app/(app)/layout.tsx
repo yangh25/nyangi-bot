@@ -20,6 +20,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NavLink href="/add" active={pathname === "/add"}>
             Add word
           </NavLink>
+          <NavLink href="/add/bulk" active={pathname === "/add/bulk"}>
+            Bulk add
+          </NavLink>
           <NavLink href="/words" active={pathname === "/words"}>
             Word bank
           </NavLink>

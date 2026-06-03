@@ -43,6 +43,7 @@ export default function AddWordPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<{ alreadySeen: boolean; timesSeen: number } | null>(null);
+  const [saveError, setSaveError] = useState("");
   const [reporting, setReporting] = useState(false);
 
   async function runSearch(fresh: boolean) {
@@ -110,24 +111,37 @@ export default function AddWordPage() {
       contextSentence: "",
     });
     setSaveResult(null);
+    setSaveError("");
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!form.category) return;
     setSaving(true);
+    setSaveError("");
 
-    const res = await fetch("/api/words", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form }),
-    });
-    const data = await res.json();
+    let res: Response;
+    let data: { ok?: boolean; alreadySeen?: boolean; timesSeen?: number; error?: string };
+    try {
+      res = await fetch("/api/words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form }),
+      });
+      data = await res.json();
+    } catch {
+      setSaving(false);
+      setSaveError("Couldn't save — check your connection and try again.");
+      return;
+    }
     setSaving(false);
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      setSaveError(data.error ?? "Save failed — please try again.");
+      return;
+    }
 
-    setSaveResult({ alreadySeen: data.alreadySeen, timesSeen: data.timesSeen });
+    setSaveResult({ alreadySeen: data.alreadySeen!, timesSeen: data.timesSeen! });
     if (!data.alreadySeen) {
       setTimeout(() => router.push("/words"), 800);
     }
@@ -212,7 +226,7 @@ export default function AddWordPage() {
       {/* Save result notice */}
       {saveResult?.alreadySeen && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 mb-4">
-          You've seen this word before — now seen {saveResult.timesSeen} time{saveResult.timesSeen === 1 ? "" : "s"}.
+          You&apos;ve seen this word before — now seen {saveResult.timesSeen} time{saveResult.timesSeen === 1 ? "" : "s"}.
         </div>
       )}
 
@@ -298,6 +312,7 @@ export default function AddWordPage() {
             >
               Back to results
             </button>
+            {saveError && <span className="text-sm text-red-500">{saveError}</span>}
           </div>
         </form>
       )}
