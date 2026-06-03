@@ -1,6 +1,7 @@
 import { auth } from "../../../../../auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import HanjaList, { HanjaGroup } from "./HanjaList";
 
 // Only real CJK (Han) characters count as hanja; the hanja field occasionally
 // contains stray hangul (e.g. 하, 다) from bad model output.
@@ -28,13 +29,26 @@ export default async function HanjaPage() {
     }
   }
 
-  // Most-connected characters first, then by how many words share them.
-  const chars = [...index.entries()]
+  // Most-connected characters first; words within each sorted shortest-first.
+  const groups: HanjaGroup[] = [...index.entries()]
     .map(([ch, entries]) => ({
       ch,
-      entries: entries.sort((a, b) => a.word.korean.length - b.word.korean.length),
+      words: entries
+        .sort((a, b) => a.word.korean.length - b.word.korean.length)
+        .map((e) => ({
+          id: e.id,
+          korean: e.word.korean,
+          hanja: e.word.hanja,
+          def: e.word.definitionEn || e.word.definitionKo || "",
+        })),
     }))
-    .sort((a, b) => b.entries.length - a.entries.length || a.ch.localeCompare(b.ch));
+    .sort((a, b) => b.words.length - a.words.length || a.ch.localeCompare(b.ch));
+
+  const stored = groups.length
+    ? await prisma.hanja.findMany({ where: { character: { in: groups.map((g) => g.ch) } } })
+    : [];
+  const initialMeanings: Record<string, string> = {};
+  for (const h of stored) initialMeanings[h.character] = h.meaningKo;
 
   return (
     <div>
@@ -42,7 +56,7 @@ export default async function HanjaPage() {
         <h1 className="text-xl font-bold text-stone-800">
           Hanja
           <span className="ml-2 text-sm font-normal text-stone-400">
-            {chars.length} character{chars.length === 1 ? "" : "s"} · {userWords.length} word
+            {groups.length} character{groups.length === 1 ? "" : "s"} · {userWords.length} word
             {userWords.length === 1 ? "" : "s"}
           </span>
         </h1>
@@ -51,7 +65,7 @@ export default async function HanjaPage() {
         </Link>
       </div>
 
-      {chars.length === 0 && (
+      {groups.length === 0 ? (
         <p className="text-stone-400 text-sm">
           No hanja words yet.{" "}
           <Link href="/add" className="text-stone-800 underline">
@@ -59,36 +73,9 @@ export default async function HanjaPage() {
           </Link>
           .
         </p>
+      ) : (
+        <HanjaList groups={groups} initialMeanings={initialMeanings} />
       )}
-
-      <div className="space-y-3">
-        {chars.map(({ ch, entries }) => (
-          <div key={ch} className="bg-white border border-stone-200 rounded-xl p-5">
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-2xl font-bold text-blue-700">{ch}</span>
-              <span className="text-xs text-stone-400">
-                {entries.length} word{entries.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="space-y-1">
-              {entries.map((entry) => {
-                const { word } = entry;
-                return (
-                  <div key={entry.id} className="flex items-baseline gap-2 text-sm">
-                    <span className="font-medium text-stone-800 whitespace-nowrap">
-                      {word.korean}
-                      {word.hanja ? <span className="text-stone-400"> ({word.hanja})</span> : ""}
-                    </span>
-                    <span className="text-stone-500">
-                      {word.definitionEn || word.definitionKo}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

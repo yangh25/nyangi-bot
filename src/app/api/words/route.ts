@@ -15,8 +15,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    let word = await prisma.word.findFirst({ where: { korean, category: category as Category } });
-
     const content = {
       romanization: romanization || null,
       hanja: hanja || null,
@@ -24,6 +22,13 @@ export async function POST(req: Request) {
       definitionEn: definitionEn || null,
       definitionKo: definitionKo || null,
     };
+
+    // A word is identified by its definition too, so homonyms that share a
+    // spelling + category (e.g. 달다 "sweet" vs "to hang") stay distinct
+    // entries, while re-adding the same sense reuses the existing row.
+    let word = await prisma.word.findFirst({
+      where: { korean, category: category as Category, definitionKo: content.definitionKo },
+    });
 
     if (!word) {
       word = await prisma.word.create({

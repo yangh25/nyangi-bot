@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { KrdictCandidate } from "@/app/api/krdict/route";
 import { Category } from "@prisma/client";
@@ -21,6 +20,19 @@ function splitSenses(def: string): string[] {
   return def.split(/\s+(?=\d+\.\s)/).map((s) => s.trim()).filter(Boolean);
 }
 
+function candidateToForm(c: KrdictCandidate): FormState {
+  return {
+    korean: c.word,
+    romanization: "",
+    hanja: c.hanja,
+    pos: c.pos,
+    category: (c.suggestedCategory as Category) || "",
+    definitionEn: c.definitionEn,
+    definitionKo: splitSenses(c.definitionKo).join("\n"),
+    contextSentence: "",
+  };
+}
+
 const EMPTY_FORM: FormState = {
   korean: "",
   romanization: "",
@@ -33,8 +45,9 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function AddWordPage() {
-  const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const [justAdded, setJustAdded] = useState("");
   const [candidates, setCandidates] = useState<KrdictCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -45,6 +58,7 @@ export default function AddWordPage() {
   const [saveResult, setSaveResult] = useState<{ alreadySeen: boolean; timesSeen: number } | null>(null);
   const [saveError, setSaveError] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [addState, setAddState] = useState<Record<string, "saving" | "added" | "dup" | "error">>({});
 
   async function runSearch(fresh: boolean) {
     const q = query.trim();
@@ -56,6 +70,8 @@ export default function AddWordPage() {
     setSelected(null);
     setForm(EMPTY_FORM);
     setSaveResult(null);
+    setJustAdded("");
+    setAddState({});
 
     if (fresh) {
       await fetch(`/api/krdict?q=${encodeURIComponent(q)}`, { method: "DELETE" });
@@ -100,18 +116,32 @@ export default function AddWordPage() {
 
   function selectCandidate(candidate: KrdictCandidate) {
     setSelected(candidate);
-    setForm({
-      korean: candidate.word,
-      romanization: "",
-      hanja: candidate.hanja,
-      pos: candidate.pos,
-      category: (candidate.suggestedCategory as Category) || "",
-      definitionEn: candidate.definitionEn,
-      definitionKo: splitSenses(candidate.definitionKo).join("\n"),
-      contextSentence: "",
-    });
+    setForm(candidateToForm(candidate));
     setSaveResult(null);
     setSaveError("");
+  }
+
+  // Add a candidate straight to the word bank without opening the form, so
+  // several senses from one search can be added in a row. Falls back to the
+  // form when the category is unknown (the API requires one).
+  async function quickAdd(c: KrdictCandidate) {
+    if (!c.suggestedCategory) {
+      selectCandidate(c);
+      return;
+    }
+    setAddState((s) => ({ ...s, [c.targetCode]: "saving" }));
+    try {
+      const res = await fetch("/api/words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(candidateToForm(c)),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAddState((s) => ({ ...s, [c.targetCode]: data.alreadySeen ? "dup" : "added" }));
+    } catch {
+      setAddState((s) => ({ ...s, [c.targetCode]: "error" }));
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -141,19 +171,34 @@ export default function AddWordPage() {
       return;
     }
 
-    setSaveResult({ alreadySeen: data.alreadySeen!, timesSeen: data.timesSeen! });
-    if (!data.alreadySeen) {
-      setTimeout(() => router.push("/words"), 800);
+    if (data.alreadySeen) {
+      setSaveResult({ alreadySeen: true, timesSeen: data.timesSeen! });
+      return;
     }
+
+    // Reset back to the search box so the next word can be looked up right away.
+    setJustAdded(form.korean);
+    setQuery("");
+    setCandidates([]);
+    setSelected(null);
+    setForm(EMPTY_FORM);
+    setSaveResult(null);
+    searchRef.current?.focus();
   }
+
+  // Before any results exist, center the title + search bar in the viewport;
+  // once candidates or a selection appear, fall back to the normal top layout.
+  const idle = candidates.length === 0 && !selected;
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-stone-800 mb-6">Add a word</h1>
+      <div className={idle ? "min-h-[70vh] flex flex-col justify-center" : ""}>
+        <h1 className="text-xl font-bold text-stone-800 mb-6 text-center">Add a word</h1>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+        {/* Search */}
+        <form onSubmit={handleSearch} className="flex gap-2 mb-6">
         <input
+          ref={searchRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search Korean word…"
@@ -177,6 +222,12 @@ export default function AddWordPage() {
         </button>
       </form>
 
+      {justAdded && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-800 mb-4">
+          Added <span className="font-semibold">{justAdded}</span> — search for another word.
+        </div>
+      )}
+
       {searchError && <p className="text-red-500 text-sm mb-4">{searchError}</p>}
 
       {correction && (
@@ -184,6 +235,7 @@ export default function AddWordPage() {
           Did you mean <span className="font-semibold">{correction}</span>? Showing results for the corrected spelling.
         </p>
       )}
+      </div>
 
       {/* Candidates */}
       {candidates.length > 0 && !selected && (
@@ -198,28 +250,56 @@ export default function AddWordPage() {
               {reporting ? "Refreshing…" : "Report inaccurate results"}
             </button>
           </div>
-          {candidates.map((c) => (
-            <button
-              key={c.targetCode}
-              onClick={() => selectCandidate(c)}
-              className="w-full text-left border border-stone-200 rounded-lg px-4 py-3 bg-white hover:border-stone-400 transition-colors"
-            >
-              <span className="font-medium text-stone-800">{c.word}</span>
-              {c.hanja && <span className="text-stone-400 ml-1.5">{c.hanja}</span>}
-              {c.pos && <span className="text-xs text-stone-400 ml-2">{c.pos}</span>}
-              {c.definitionKo && (
-                <div className="text-sm text-stone-500 mt-0.5">
-                  {splitSenses(c.definitionKo).map((sense, i) => (
-                    <p key={i}>{sense}</p>
-                  ))}
-                </div>
-              )}
-              {c.definitionEn && (
-                <p className="text-xs text-stone-400 truncate">{c.definitionEn}</p>
-              )}
-
-            </button>
-          ))}
+          {candidates.map((c) => {
+            const status = addState[c.targetCode];
+            return (
+              <div
+                key={c.targetCode}
+                className="flex items-start gap-3 border border-stone-200 rounded-lg px-4 py-3 bg-white"
+              >
+                <button
+                  onClick={() => selectCandidate(c)}
+                  className="flex-1 text-left hover:opacity-70 transition-opacity"
+                >
+                  <span className="font-medium text-stone-800">{c.word}</span>
+                  {c.hanja && <span className="text-stone-400 ml-1.5">{c.hanja}</span>}
+                  {c.pos && <span className="text-xs text-stone-400 ml-2">{c.pos}</span>}
+                  {c.definitionKo && (
+                    <div className="text-sm text-stone-500 mt-0.5">
+                      {splitSenses(c.definitionKo).map((sense, i) => (
+                        <p key={i}>{sense}</p>
+                      ))}
+                    </div>
+                  )}
+                  {c.definitionEn && (
+                    <p className="text-xs text-stone-400 truncate">{c.definitionEn}</p>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => quickAdd(c)}
+                  disabled={status === "saving" || status === "added" || status === "dup"}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium border transition-colors ${
+                    status === "added" || status === "dup"
+                      ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                      : status === "error"
+                        ? "border-red-300 text-red-600 hover:border-red-400"
+                        : "border-stone-300 text-stone-700 hover:border-stone-500 disabled:opacity-50"
+                  }`}
+                >
+                  {status === "saving"
+                    ? "Adding…"
+                    : status === "added"
+                      ? "Added ✓"
+                      : status === "dup"
+                        ? "Already saved"
+                        : status === "error"
+                          ? "Retry"
+                          : "Add"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { Category } from "@prisma/client";
 import { CATEGORIES, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/categories";
+import { useInfiniteScroll } from "@/components/useInfiniteScroll";
+import { useHanjaMeanings } from "@/components/useHanjaMeanings";
+import HanjaText from "@/components/HanjaText";
+
+const PAGE_SIZE = 20;
 
 interface WordEntry {
   id: string;
@@ -35,6 +40,9 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
   const [filter, setFilter] = useState<Category | "ALL">("ALL");
 
   const filtered = filter === "ALL" ? words : words.filter((w) => w.word.category === filter);
+  const { count, sentinelRef } = useInfiniteScroll(filtered.length, PAGE_SIZE, filter);
+  const visible = filtered.slice(0, count);
+  const meanings = useHanjaMeanings(words.map((w) => w.word.hanja));
 
   // Map each hanja character to the HANJA words that contain it.
   const hanjaIndex = useMemo(() => {
@@ -102,7 +110,7 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
       )}
 
       <div className="space-y-3">
-        {filtered.map((entry) => {
+        {visible.map((entry) => {
           const { word } = entry;
           const related = relatedByChar(entry);
           return (
@@ -111,7 +119,7 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
               <div className="flex items-baseline gap-2 flex-wrap mb-2">
                 <span className="text-2xl font-bold text-stone-800">{word.korean}</span>
                 {word.hanja && (
-                  <span className="text-lg text-stone-400">{word.hanja}</span>
+                  <HanjaText hanja={word.hanja} meanings={meanings} className="text-lg text-stone-400" />
                 )}
                 {word.romanization && (
                   <span className="text-sm text-stone-400">{word.romanization}</span>
@@ -181,6 +189,8 @@ export default function WordBank({ words }: { words: WordEntry[] }) {
           );
         })}
       </div>
+
+      <div ref={sentinelRef} aria-hidden />
     </div>
   );
 }
