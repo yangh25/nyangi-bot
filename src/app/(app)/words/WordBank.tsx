@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Category } from "@prisma/client";
-import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/categories";
 
 interface WordEntry {
   id: string;
@@ -30,14 +30,6 @@ function timeAgo(date: Date) {
   if (days === 1) return "yesterday";
   return `${days} days ago`;
 }
-
-const CATEGORY_COLORS: Record<Category, string> = {
-  PURE_KOREAN: "bg-emerald-50 text-emerald-700",
-  HANJA: "bg-blue-50 text-blue-700",
-  FOUR_CHAR_IDIOM: "bg-purple-50 text-purple-700",
-  PROVERB: "bg-amber-50 text-amber-700",
-  IDIOM: "bg-rose-50 text-rose-700",
-};
 
 export default function WordBank({ words }: { words: WordEntry[] }) {
   const [filter, setFilter] = useState<Category | "ALL">("ALL");

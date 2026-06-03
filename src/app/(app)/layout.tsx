@@ -26,6 +26,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NavLink href="/words" active={pathname === "/words"}>
             Word bank
           </NavLink>
+          <NavLink href="/words/timeline" active={pathname === "/words/timeline"}>
+            Timeline
+          </NavLink>
+          <NavLink href="/words/hanja" active={pathname === "/words/hanja"}>
+            Hanja
+          </NavLink>
           <NavLink href="/review" active={pathname === "/review"}>
             Review
           </NavLink>
