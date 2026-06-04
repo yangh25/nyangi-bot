@@ -1,9 +1,24 @@
 @import "tailwindcss";
 
-/* Scale the whole UI up a little: Tailwind's rem-based sizes (text, padding,
-   max-widths) all key off this root font size. */
+@theme {
+  /* Pin breakpoints to absolute px so responsive utilities don't shift when the
+     root font-size changes between mobile and desktop (below). */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* The UI is rem-based, so the root font size scales everything (text, padding,
+   max-widths). Phones get the default size; larger screens scale up a little. */
 html {
-  font-size: 24px;
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  html {
+    font-size: 24px;
+  }
 }
 
 :root {
